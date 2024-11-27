@@ -1,0 +1,7 @@
+[project]
+name = "llm-copilot"
+version = "0.1"
+dependencies = ["llm>=0.19a0", "httpx", "httpx-sse"]
+
+[project.entry-points.llm]
+copilot = "llm_copilot"
