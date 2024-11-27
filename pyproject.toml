@@ -1,7 +1,18 @@
 [project]
 name = "llm-copilot"
+description = "Plugin for LLM to use Github Copilot Enterprise's models"
 version = "0.1"
 dependencies = ["llm>=0.19a0", "httpx", "httpx-sse"]
+readme = "README.md"
+authors = [{ name = "khoi" }]
+license = { text = "Apache-2.0" }
+classifiers = ["License :: OSI Approved :: Apache Software License"]
+
+[project.urls]
+Homepage = "https://github.com/khoi/llm-copilot"
+Changelog = "https://github.com/khoi/llm-copilot/releases"
+Issues = "https://github.com/khoi/llm-copilot/issues"
+CI = "https://github.com/khoi/llm-copilot/actions"
 
 [project.entry-points.llm]
 copilot = "llm_copilot"
