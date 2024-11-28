@@ -15,7 +15,7 @@ DEFAULT_MODELS = {
 }
 
 TOKEN_PATH = os.path.expanduser("~/.config/github-copilot/llm-copilot-token.json")
-MODELS_PATH = os.path.expanduser("~/.config/github-copilot/llm-copilot-models.json")
+MODELS_PATH = llm.user_dir() / "llm-copilot-models.json"
 
 COPILOT_HEADERS = {
     "Content-Type": "application/json",
