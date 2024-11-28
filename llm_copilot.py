@@ -16,7 +16,6 @@ DEFAULT_ALIASES = {
 
 DEFAULT_MODELS = list(DEFAULT_ALIASES.keys())
 
-BASE_URL = "https://api.business.githubcopilot.com"
 TOKEN_PATH = os.path.expanduser("~/.config/github-copilot/llm-copilot-token.json")
 
 
@@ -205,7 +204,7 @@ class Copilot(llm.Model):
                 with connect_sse(
                     client,
                     "POST",
-                    f"{BASE_URL}/chat/completions",
+                    "https://api.business.githubcopilot.com/chat/completions",
                     headers={
                         "Content-Type": "application/json",
                         "Authorization": f"Bearer {auth_token['token']}",
@@ -244,7 +243,7 @@ class Copilot(llm.Model):
         else:
             with httpx.Client() as client:
                 api_response = client.post(
-                    f"{BASE_URL}/chat/completions",
+                    "https://api.business.githubcopilot.com/chat/completions",
                     headers={
                         "Content-Type": "application/json",
                         "Accept": "application/json",
