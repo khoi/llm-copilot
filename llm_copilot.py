@@ -14,7 +14,7 @@ DEFAULT_MODELS = {
     "gpt-4o-mini",
 }
 
-TOKEN_PATH = os.path.expanduser("~/.config/github-copilot/llm-copilot-token.json")
+TOKEN_PATH = llm.user_dir() / "llm-copilot-token.json"
 MODELS_PATH = llm.user_dir() / "llm-copilot-models.json"
 
 COPILOT_HEADERS = {
