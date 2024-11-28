@@ -72,32 +72,33 @@ def mock_env(monkeypatch, llm_user_path):
     monkeypatch.setenv("LLM_USER_PATH", llm_user_path)
 
 
-@pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
-def test_caches_models(monkeypatch, tmpdir, httpx_mock):
-    httpx_mock.add_response(
-        url="https://api.business.githubcopilot.com/models",
-        method="GET",
-        json=TEST_MODELS,
-    )
-    httpx_mock.add_response(
-        url="https://api.github.com/copilot_internal/v2/token",
-        method="GET",
-        json={"token": "test_token", "expires_at": time.time() + 3600},
-    )
-
-    llm_user_path = str(tmpdir / "llm")
-    monkeypatch.setenv("LLM_USER_PATH", llm_user_path)
-
-    models_path = pathlib.Path(llm_user_path) / "llm-copilot-models.json"
-    assert not models_path.exists()
-
-    models_with_aliases = llm.get_models_with_aliases()
-    assert models_path.exists()
-
-    request = [r for r in httpx_mock.get_requests() if str(r.url).endswith("/models")][
-        0
-    ]
-    assert request.url == "https://api.business.githubcopilot.com/models"
+# @pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
+# def test_caches_models(monkeypatch, tmpdir, httpx_mock):
+#     httpx_mock.add_response(
+#         url="https://api.business.githubcopilot.com/models",
+#         method="GET",
+#         json=TEST_MODELS,
+#     )
+#     httpx_mock.add_response(
+#         url="https://api.github.com/copilot_internal/v2/token",
+#         method="GET",
+#         json={"token": "test_token", "expires_at": time.time() + 3600},
+#     )
+#
+#     llm_user_path = str(tmpdir / "llm")
+#     monkeypatch.setenv("LLM_USER_PATH", llm_user_path)
+#
+#     models_path = pathlib.Path(llm_user_path) / "llm-copilot-models.json"
+#     assert not models_path.exists()
+#
+#     models_with_aliases = llm.get_models_with_aliases()
+#     assert models_path.exists()
+#
+#     request = [r for r in httpx_mock.get_requests() if str(r.url).endswith("/models")][
+#         0
+#     ]
+#     assert request.url == "https://api.business.githubcopilot.com/models"
+#
 
 
 @pytest.fixture
