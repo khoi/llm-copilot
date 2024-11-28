@@ -1,28 +1,123 @@
+import click
 import llm
 import os
 import json
+from pathlib import Path
 from typing import Optional, List
 from pydantic import Field
 import httpx
 import time
 from httpx_sse import connect_sse
 
-DEFAULT_ALIASES = {
-    "copilot-gpt-3.5-turbo": "gpt-3.5-turbo",
-    "copilot-gpt-4": "gpt-4",
-    "copilot-gpt-4o": "gpt-4",
-    "copilot-gpt-4o-mini": "gpt-4",
+DEFAULT_MODELS = {
+    "gpt-4o",
+    "gpt-4o-mini",
 }
 
-DEFAULT_MODELS = list(DEFAULT_ALIASES.keys())
-
 TOKEN_PATH = os.path.expanduser("~/.config/github-copilot/llm-copilot-token.json")
+MODELS_PATH = os.path.expanduser("~/.config/github-copilot/llm-copilot-models.json")
+
+COPILOT_HEADERS = {
+    "Content-Type": "application/json",
+    "Accept": "application/json",
+    "Copilot-Integration-Id": "vscode-chat",
+    "editor-plugin-version": "copilot-chat/0.22.4",
+    "editor-version": "vscode/1.95.3",
+    "user-agent": "GitHubCopilotChat/0.22.4",
+}
+
+
+def filter_chat_models(models_data):
+    """Extract chat model IDs from models data response."""
+    return [
+        model["id"]
+        for model in models_data["data"]
+        if model.get("capabilities", {}).get("type") == "chat"
+    ]
+
+
+def infer_key():
+    """Infer GitHub Copilot token from config files."""
+    config_path = os.path.expanduser("~/.config")
+    file_paths = [
+        os.path.join(config_path, "github-copilot/hosts.json"),
+        os.path.join(config_path, "github-copilot/apps.json"),
+    ]
+
+    for file_path in file_paths:
+        if os.path.isfile(file_path):
+            try:
+                with open(file_path) as f:
+                    data = json.load(f)
+                for key, value in data.items():
+                    if "github.com" in key:
+                        return value.get("oauth_token")
+            except (json.JSONDecodeError, AttributeError, KeyError):
+                continue
+    return None
+
+
+def refresh_models():
+    """Refresh the list of available Copilot models"""
+    models_file = Path(MODELS_PATH)
+    oauth_token = infer_key() or llm.get_key("", "github-copilot")
+    if not oauth_token:
+        raise click.ClickException(
+            "You must set the 'github-copilot' key or have valid GitHub Copilot credentials."
+        )
+
+    # First get auth token
+    headers = {**COPILOT_HEADERS, "Authorization": f"Bearer {oauth_token}"}
+    response = httpx.get(
+        "https://api.github.com/copilot_internal/v2/token",
+        headers=headers,
+        timeout=30,
+    )
+    response.raise_for_status()
+    auth_token = response.json()["token"]
+
+    # Then get models
+    response = httpx.get(
+        "https://api.business.githubcopilot.com/models",
+        headers={**COPILOT_HEADERS, "Authorization": f"Bearer {auth_token}"},
+    )
+    response.raise_for_status()
+    models_data = response.json()
+
+    # Filter to just chat models and store their IDs
+    chat_models = filter_chat_models(models_data)
+
+    # Store the full response for future reference
+    models_file.write_text(json.dumps(models_data, indent=2))
+
+    return {"models": chat_models}
+
+
+def get_model_details():
+    """Get cached model details or use defaults"""
+    models = {"models": DEFAULT_MODELS}
+    models_file = Path(MODELS_PATH)
+    if models_file.exists():
+        try:
+            models_data = json.loads(models_file.read_text())
+            # Filter to just chat models and store their IDs
+            chat_models = filter_chat_models(models_data)
+            models = {"models": chat_models}
+        except (json.JSONDecodeError, KeyError):
+            pass
+    elif infer_key() or llm.get_key("", "github-copilot"):
+        try:
+            models = refresh_models()
+        except httpx.HTTPStatusError:
+            pass
+
+    return models.get("models", DEFAULT_MODELS)
 
 
 @llm.hookimpl
 def register_models(register):
-    for model_id in DEFAULT_MODELS:
-        register(Copilot(model_id))
+    for model_id in get_model_details():
+        register(Copilot(f"copilot-{model_id}"))
 
 
 @llm.hookimpl
@@ -30,6 +125,25 @@ def register_commands(cli):
     @cli.group(name="copilot")
     def copilot():
         "Commands for Github Copilot models"
+
+    @copilot.command()
+    def refresh():
+        "Refresh the list of available Copilot models"
+        before = set(get_model_details())
+        refresh_models()
+        after = set(get_model_details())
+        added = after - before
+        removed = before - after
+        if added:
+            click.echo(f"Added models: {', '.join(added)}", err=True)
+        if removed:
+            click.echo(f"Removed models: {', '.join(removed)}", err=True)
+        if added or removed:
+            click.echo("New list of models:", err=True)
+            for model_id in get_model_details():
+                click.echo(model_id, err=True)
+        else:
+            click.echo("No changes", err=True)
 
 
 class Copilot(llm.Model):
@@ -59,26 +173,7 @@ class Copilot(llm.Model):
 
     def __init__(self, model_id: str):
         self.model_id = model_id
-
-    def infer_key(self):
-        """Infer GitHub Copilot token from config files."""
-        config_path = os.path.expanduser("~/.config")
-        file_paths = [
-            os.path.join(config_path, "github-copilot/hosts.json"),
-            os.path.join(config_path, "github-copilot/apps.json"),
-        ]
-
-        for file_path in file_paths:
-            if os.path.isfile(file_path):
-                try:
-                    with open(file_path) as f:
-                        data = json.load(f)
-                    for key, value in data.items():
-                        if "github.com" in key:
-                            return value.get("oauth_token")
-                except (json.JSONDecodeError, AttributeError, KeyError):
-                    continue
-        return None
+        self._api_model_id = model_id.replace("copilot-", "", 1)
 
     def ensure_config_dir(self):
         """Ensure the config directory exists."""
@@ -98,10 +193,7 @@ class Copilot(llm.Model):
             pass
 
         # Fetch new token
-        headers = {
-            "Authorization": f"Bearer {oauth_token}",
-            "Accept": "application/json",
-        }
+        headers = {**COPILOT_HEADERS, "Authorization": f"Bearer {oauth_token}"}
 
         response = httpx.get(
             "https://api.github.com/copilot_internal/v2/token",
@@ -158,7 +250,7 @@ class Copilot(llm.Model):
 
     def build_body(self, prompt, messages, stream=True):
         body = {
-            "model": DEFAULT_ALIASES[self.model_id],
+            "model": self._api_model_id,
             "messages": messages,
             "max_tokens": prompt.options.max_tokens,
             "stream": stream,
@@ -194,7 +286,7 @@ class Copilot(llm.Model):
         response: llm.Response,
         conversation=None,
     ):
-        oauth_token = self.infer_key() or self.get_key()
+        oauth_token = infer_key() or self.get_key()
         auth_token = self.authorize_token(oauth_token)
         messages = self.build_messages(prompt, conversation)
         body = self.build_body(prompt, messages, stream)
@@ -206,12 +298,8 @@ class Copilot(llm.Model):
                     "POST",
                     "https://api.business.githubcopilot.com/chat/completions",
                     headers={
-                        "Content-Type": "application/json",
+                        **COPILOT_HEADERS,
                         "Authorization": f"Bearer {auth_token['token']}",
-                        "Copilot-Integration-Id": "vscode-chat",
-                        "editor-plugin-version": "copilot-chat/0.22.4",
-                        "editor-version": "vscode/1.95.3",
-                        "user-agent": "GitHubCopilotChat/0.22.4",
                     },
                     json=body,
                     timeout=None,
@@ -245,8 +333,7 @@ class Copilot(llm.Model):
                 api_response = client.post(
                     "https://api.business.githubcopilot.com/chat/completions",
                     headers={
-                        "Content-Type": "application/json",
-                        "Accept": "application/json",
+                        **COPILOT_HEADERS,
                         "Authorization": f"Bearer {auth_token['token']}",
                     },
                     json=body,
