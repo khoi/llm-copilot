@@ -148,6 +148,7 @@ def register_commands(cli):
 
 class Copilot(llm.Model):
     needs_key = "github-copilot"
+    key_env_var = "LLM_GITHUB_COPILOT_KEY"
     can_stream = True
 
     class Options(llm.Model.Options):
