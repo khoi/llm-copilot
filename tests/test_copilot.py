@@ -70,10 +70,6 @@ def llm_user_path(tmp_path_factory):
 def mock_env(monkeypatch, llm_user_path):
     monkeypatch.setenv("LLM_GITHUB_COPILOT_KEY", "test_key")
     monkeypatch.setenv("LLM_USER_PATH", llm_user_path)
-    # Write a copilot models file
-    models_path = pathlib.Path(llm_user_path) / "llm-copilot-models.json"
-    models_path.parent.mkdir(parents=True, exist_ok=True)
-    models_path.write_text(json.dumps(TEST_MODELS, indent=2))
 
 
 @pytest.mark.httpx_mock(assert_all_requests_were_expected=False)
