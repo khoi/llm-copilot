@@ -5,7 +5,7 @@ from typing import Optional, List
 from pydantic import Field
 import httpx
 import time
-from httpx_sse import connect_sse, aconnect_sse
+from httpx_sse import connect_sse
 
 DEFAULT_ALIASES = {
     "copilot-gpt-3.5-turbo": "gpt-3.5-turbo",
@@ -33,11 +33,11 @@ def register_commands(cli):
         "Commands for Github Copilot models"
 
 
-class _Shared:
+class Copilot(llm.Model):
     needs_key = "github-copilot"
     can_stream = True
 
-    class Options(llm.Options):
+    class Options(llm.Model.Options):
         max_tokens: Optional[int] = Field(
             default=4_096,
         )
@@ -188,8 +188,6 @@ class _Shared:
     def __str__(self) -> str:
         return f"Copilot: {self.model_id}"
 
-
-class Copilot(_Shared, llm.Model):
     def execute(
         self,
         prompt: llm.Prompt,
