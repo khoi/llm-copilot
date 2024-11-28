@@ -7,12 +7,14 @@ import httpx
 import time
 from httpx_sse import connect_sse, aconnect_sse
 
-DEFAULT_MODELS = [
-    "copilot-gpt-3.5-turbo",
-    "copilot-gpt-4",
-    "copilot-gpt-4o",
-    "copilot-gpt-4o-mini",
-]
+DEFAULT_ALIASES = {
+    "copilot-gpt-3.5-turbo": "gpt-3.5-turbo",
+    "copilot-gpt-4": "gpt-4",
+    "copilot-gpt-4o": "gpt-4",
+    "copilot-gpt-4o-mini": "gpt-4",
+}
+
+DEFAULT_MODELS = list(DEFAULT_ALIASES.keys())
 
 BASE_URL = "https://api.business.githubcopilot.com"
 TOKEN_PATH = os.path.expanduser("~/.config/github-copilot/llm-copilot-token.json")
@@ -157,7 +159,7 @@ class _Shared:
 
     def build_body(self, prompt, messages, stream=True):
         body = {
-            "model": self.model_id.removeprefix("copilot-"),
+            "model": DEFAULT_ALIASES[self.model_id],
             "messages": messages,
             "max_tokens": prompt.options.max_tokens,
             "stream": stream,
