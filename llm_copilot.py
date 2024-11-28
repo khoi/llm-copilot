@@ -15,7 +15,7 @@ DEFAULT_MODELS = [
 ]
 
 BASE_URL = "https://api.business.githubcopilot.com"
-TOKEN_PATH = "/tmp/github-copilot-token.json"
+TOKEN_PATH = os.path.expanduser("~/.config/github-copilot/llm-copilot-token.json")
 
 
 @llm.hookimpl
@@ -79,6 +79,11 @@ class _Shared:
                     continue
         return None
 
+    def ensure_config_dir(self):
+        """Ensure the config directory exists."""
+        config_dir = os.path.dirname(TOKEN_PATH)
+        os.makedirs(config_dir, exist_ok=True)
+
     def authorize_token(self, oauth_token):
         """Authorize GitHub Copilot token and cache it."""
         # Try to load cached token
@@ -109,6 +114,7 @@ class _Shared:
         token_data = response.json()
 
         # Cache the token
+        self.ensure_config_dir()
         with open(TOKEN_PATH, "w") as f:
             json.dump(token_data, f)
 
