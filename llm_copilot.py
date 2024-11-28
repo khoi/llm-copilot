@@ -108,7 +108,7 @@ def get_model_details():
     elif infer_key() or llm.get_key("", "github-copilot"):
         try:
             models = refresh_models()
-        except httpx.HTTPStatusError:
+        except Exception:
             pass
 
     return models.get("models", DEFAULT_MODELS)
