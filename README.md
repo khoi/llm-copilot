@@ -4,19 +4,29 @@ A plugin for [LLM](https://llm.datasette.io) that allows you to use ur existing 
 
 ## Installation
 
-I'll have to publish this to PyPi first, for now.
+My account at PyPi is still waiting for approval. Since I couldn't publish it yet. Here is a development way of installing the plugin.
 
 - Install [LLM](https://llm.datasette.io)
-- Clone
+- Clone this repo to a folder
 - `llm install -e .`
 
-## Caveats
+## Usage
 
-The plugin requires you to have a Github Copilot API Token, this is different from your Github Token.
+The plugin will try to piggy-back on existing Github Copilot extensions (Xcode Copilot, Copilot.nvim) tokens stored in `~/.config/github-copilot/`
 
-The easiest way to fetch it is to setup <https://github.com/github/CopilotForXcode>
+Since you're most likely coming from Goodnotes 👋
 
-Once that's working the plugin will piggy back on the token setup for Xcode.
+- Install <https://github.com/github/CopilotForXcode> and set it up
+- This plugin will use the token there.
 
-I will add a more direct way to fetch the token in the future.
+To verify it's working run
 
+```bash
+llm models # See if the list of models contain copilot-* models
+llm --model "copilot-gpt-4o" "Hello world"
+```
+
+## TODOs
+
+- [ ] Publish to PyPi
+- [ ] Add a way to fetch token from Github.com directly
